@@ -1,0 +1,6 @@
+{
+  "name": "DR BOLDIN DATA SUB",
+  "description": "Your Reliable Data Plug – Fast, Cheap and Reliable. Instant Nigerian mobile data subscriptions (MTN, Airtel, Glo, 9mobile), airtime top-ups, and automated wallet funding.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

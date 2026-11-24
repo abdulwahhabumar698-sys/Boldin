@@ -1,0 +1,493 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdminEmail() {
+      return isVerifiedUser() && request.auth.token.email == 'abdulwahhabumar698@gmail.com';
+    }
+
+    function isAdmin() {
+      return isAdminEmail() || (
+        isVerifiedUser() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    // Entity Validators
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+        'uid', 'email', 'fullName', 'phone', 'walletBalance',
+        'bonusBalance', 'referralCode', 'referredBy', 'otpVerified',
+        'status', 'role', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'email', 'fullName', 'phone', 'walletBalance',
+        'bonusBalance', 'referralCode', 'referredBy', 'otpVerified',
+        'status', 'role', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.uid) &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+      data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120 &&
+      data.phone is string && data.phone.size() <= 24 &&
+      data.walletBalance is number && data.walletBalance >= 0 && data.walletBalance <= 100000000 &&
+      data.bonusBalance is number && data.bonusBalance >= 0 && data.bonusBalance <= 10000000 &&
+      data.referralCode is string && data.referralCode.size() >= 4 && data.referralCode.size() <= 32 && data.referralCode.matches('^[A-Z0-9_\\-]+$') &&
+      data.referredBy is string && data.referredBy.size() <= 32 &&
+      data.otpVerified is bool &&
+      data.status in ['active', 'suspended'] &&
+      data.role in ['user', 'admin'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidReferralCodeLookup(data) {
+      return data.keys().hasAll(['code', 'ownerId', 'ownerName', 'createdAt']) &&
+      data.keys().hasOnly(['code', 'ownerId', 'ownerName', 'createdAt']) &&
+      data.code is string && data.code.size() >= 4 && data.code.size() <= 32 && data.code.matches('^[A-Z0-9_\\-]+$') &&
+      isValidId(data.ownerId) &&
+      data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 120 &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidReferralRecord(data) {
+      return data.keys().hasAll([
+        'referrerId', 'referredUserId', 'referredUserName', 'referralCode',
+        'bonusAmount', 'commissionRate', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'referrerId', 'referredUserId', 'referredUserName', 'referralCode',
+        'bonusAmount', 'commissionRate', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.referrerId) &&
+      isValidId(data.referredUserId) &&
+      data.referrerId != data.referredUserId &&
+      data.referredUserName is string && data.referredUserName.size() >= 1 && data.referredUserName.size() <= 120 &&
+      data.referralCode is string && data.referralCode.size() >= 4 && data.referralCode.size() <= 32 && data.referralCode.matches('^[A-Z0-9_\\-]+$') &&
+      data.bonusAmount is number && data.bonusAmount >= 0 && data.bonusAmount <= 50000 &&
+      data.commissionRate is number && data.commissionRate >= 0 && data.commissionRate <= 50 &&
+      data.status in ['pending', 'credited'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidDataPlan(data) {
+      return data.keys().hasAll([
+        'id', 'network', 'category', 'name', 'dataVolume', 'validity',
+        'costPrice', 'sellingPrice', 'discountLabel', 'apiPlanCode',
+        'active', 'featured', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'id', 'network', 'category', 'name', 'dataVolume', 'validity',
+        'costPrice', 'sellingPrice', 'discountLabel', 'apiPlanCode',
+        'active', 'featured', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.id) &&
+      data.network in ['MTN', 'AIRTEL', 'GLO', '9MOBILE'] &&
+      data.category in ['SME', 'GIFTING', 'CORPORATE'] &&
+      data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+      data.dataVolume is string && data.dataVolume.size() >= 1 && data.dataVolume.size() <= 32 &&
+      data.validity is string && data.validity.size() >= 1 && data.validity.size() <= 40 &&
+      data.costPrice is number && data.costPrice >= 0 && data.costPrice <= 1000000 &&
+      data.sellingPrice is number && data.sellingPrice >= 1 && data.sellingPrice <= 1000000 &&
+      data.discountLabel is string && data.discountLabel.size() <= 40 &&
+      data.apiPlanCode is string && data.apiPlanCode.size() >= 1 && data.apiPlanCode.size() <= 64 &&
+      data.active is bool &&
+      data.featured is bool &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll([
+        'userId', 'userEmail', 'type', 'network', 'planName', 'phoneNumber',
+        'amount', 'profit', 'paymentMethod', 'reference', 'providerReference',
+        'status', 'apiMessage', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId', 'userEmail', 'type', 'network', 'planName', 'phoneNumber',
+        'amount', 'profit', 'paymentMethod', 'reference', 'providerReference',
+        'status', 'apiMessage', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.userId) &&
+      data.userEmail is string && data.userEmail.size() >= 3 && data.userEmail.size() <= 200 &&
+      data.type in ['DATA', 'AIRTIME', 'WALLET_FUND', 'BONUS_CLAIM'] &&
+      data.network in ['MTN', 'AIRTEL', 'GLO', '9MOBILE', 'WALLET'] &&
+      data.planName is string && data.planName.size() >= 1 && data.planName.size() <= 120 &&
+      data.phoneNumber is string && data.phoneNumber.size() <= 24 &&
+      data.amount is number && data.amount >= 0 && data.amount <= 10000000 &&
+      data.profit is number && data.profit >= -100000 && data.profit <= 1000000 &&
+      data.paymentMethod in ['WALLET', 'PAYSTACK_CARD', 'BANK_TRANSFER', 'BONUS_CONVERSION'] &&
+      data.reference is string && data.reference.size() >= 3 && data.reference.size() <= 80 &&
+      data.providerReference is string && data.providerReference.size() <= 80 &&
+      data.status in ['PENDING', 'PROCESSING', 'SUCCESS', 'FAILED'] &&
+      data.apiMessage is string && data.apiMessage.size() <= 240 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidWalletDeposit(data) {
+      return data.keys().hasAll([
+        'userId', 'userName', 'amount', 'method', 'reference',
+        'virtualAccount', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId', 'userName', 'amount', 'method', 'reference',
+        'virtualAccount', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.userId) &&
+      data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120 &&
+      data.amount is number && data.amount >= 50 && data.amount <= 10000000 &&
+      data.method in ['BANK_TRANSFER', 'DEBIT_CARD', 'GATEWAY'] &&
+      data.reference is string && data.reference.size() >= 3 && data.reference.size() <= 80 &&
+      data.virtualAccount is string && data.virtualAccount.size() <= 40 &&
+      data.status in ['PENDING', 'CONFIRMED', 'REJECTED'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['targetUserId', 'title', 'message', 'category', 'createdBy', 'createdAt']) &&
+      data.keys().hasOnly(['targetUserId', 'title', 'message', 'category', 'createdBy', 'createdAt']) &&
+      data.targetUserId is string && data.targetUserId.size() >= 1 && data.targetUserId.size() <= 128 &&
+      data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+      data.message is string && data.message.size() >= 2 && data.message.size() <= 500 &&
+      data.category in ['PROMO', 'SYSTEM', 'TRANSACTION', 'REFERRAL'] &&
+      isValidId(data.createdBy) &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidSupportTicket(data) {
+      return data.keys().hasAll([
+        'userId', 'userName', 'userEmail', 'subject', 'transactionRef',
+        'message', 'adminReply', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId', 'userName', 'userEmail', 'subject', 'transactionRef',
+        'message', 'adminReply', 'status', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidId(data.userId) &&
+      data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120 &&
+      data.userEmail is string && data.userEmail.size() >= 3 && data.userEmail.size() <= 200 &&
+      data.subject is string && data.subject.size() >= 3 && data.subject.size() <= 140 &&
+      data.transactionRef is string && data.transactionRef.size() <= 80 &&
+      data.message is string && data.message.size() >= 5 && data.message.size() <= 1000 &&
+      data.adminReply is string && data.adminReply.size() <= 1000 &&
+      data.status in ['OPEN', 'IN_PROGRESS', 'RESOLVED'] &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidApiConnection(data) {
+      return data.keys().hasAll(['name', 'providerType', 'baseUrl', 'mode', 'active', 'lastCheckedAt', 'updatedAt']) &&
+      data.keys().hasOnly(['name', 'providerType', 'baseUrl', 'mode', 'active', 'lastCheckedAt', 'updatedAt']) &&
+      data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+      data.providerType in ['VTU', 'PAYMENT', 'OTP'] &&
+      data.baseUrl is string && data.baseUrl.size() >= 5 && data.baseUrl.size() <= 200 &&
+      data.mode in ['LIVE', 'SANDBOX'] &&
+      data.active is bool &&
+      data.lastCheckedAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRole(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+      data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+      isValidId(data.uid) &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidNotificationPreferences(data) {
+      return data.keys().hasAll([
+        'userId', 'pushEnabled', 'purchaseAlerts', 'referralAlerts', 'offerAlerts', 'lastReadAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'userId', 'pushEnabled', 'purchaseAlerts', 'referralAlerts', 'offerAlerts', 'lastReadAt', 'updatedAt'
+      ]) &&
+      isValidId(data.userId) &&
+      data.pushEnabled is bool &&
+      data.purchaseAlerts is bool &&
+      data.referralAlerts is bool &&
+      data.offerAlerts is bool &&
+      data.lastReadAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Users Collection (PII isolated to owner or admin)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdminEmail();
+      allow create: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == userId &&
+        incoming().role == 'user' &&
+        incoming().status == 'active' &&
+        incoming().walletBalance == 0 &&
+        incoming().bonusBalance == 0 &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().email == existing().email &&
+        incoming().referralCode == existing().referralCode &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'otpVerified', 'walletBalance', 'bonusBalance', 'status', 'role', 'updatedAt'])) ||
+          (isOwner(userId) && existing().status == 'active' && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'otpVerified', 'walletBalance', 'bonusBalance', 'referredBy', 'updatedAt']))
+        );
+
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // Referral Codes Directory (Public single lookup by code; owner creates own code)
+    match /referralCodes/{code} {
+      allow get: if isSignedIn() && isValidId(code);
+      allow list: if isAdminEmail();
+      allow create: if isValidId(code) &&
+        isVerifiedUser() &&
+        isValidReferralCodeLookup(incoming()) &&
+        incoming().code == code &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if isValidId(code) && isAdmin();
+    }
+
+    // Referrals Collection
+    match /referrals/{referralId} {
+      allow get: if isValidId(referralId) && isVerifiedUser() && (
+        existing().referrerId == request.auth.uid ||
+        existing().referredUserId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isVerifiedUser() && (
+        resource.data.referrerId == request.auth.uid ||
+        resource.data.referredUserId == request.auth.uid ||
+        isAdminEmail()
+      );
+      allow create: if isValidId(referralId) &&
+        isVerifiedUser() &&
+        isValidReferralRecord(incoming()) &&
+        incoming().referredUserId == request.auth.uid &&
+        incoming().status == 'pending' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/referralCodes/$(incoming().referralCode));
+
+      allow update: if isValidId(referralId) &&
+        isValidReferralRecord(incoming()) &&
+        incoming().referrerId == existing().referrerId &&
+        incoming().referredUserId == existing().referredUserId &&
+        incoming().referralCode == existing().referralCode &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isVerifiedUser() &&
+            existing().referrerId == request.auth.uid &&
+            existing().status == 'pending' &&
+            incoming().status == 'credited' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(referralId) && isAdmin();
+    }
+
+    // Data Plans Catalog (Public read for browsing, Admin write)
+    match /dataPlans/{planId} {
+      allow get: if isValidId(planId);
+      allow list: if true;
+      allow create: if isValidId(planId) &&
+        isAdmin() &&
+        isValidDataPlan(incoming()) &&
+        incoming().id == planId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(planId) &&
+        isAdmin() &&
+        isValidDataPlan(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(planId) && isAdmin();
+    }
+
+    // Transactions Collection
+    match /transactions/{txId} {
+      allow get: if isValidId(txId) && isVerifiedUser() && (
+        existing().userId == request.auth.uid || isAdmin()
+      );
+      allow list: if isVerifiedUser() && (
+        resource.data.userId == request.auth.uid || isAdminEmail()
+      );
+      allow create: if isValidId(txId) &&
+        isVerifiedUser() &&
+        isValidTransaction(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(txId) &&
+        isValidTransaction(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().reference == existing().reference &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isVerifiedUser() &&
+            existing().userId == request.auth.uid &&
+            existing().status in ['PENDING', 'PROCESSING'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'providerReference', 'apiMessage', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(txId) && isAdmin();
+    }
+
+    // Wallet Deposits Collection
+    match /walletDeposits/{depositId} {
+      allow get: if isValidId(depositId) && isVerifiedUser() && (
+        existing().userId == request.auth.uid || isAdmin()
+      );
+      allow list: if isVerifiedUser() && (
+        resource.data.userId == request.auth.uid || isAdminEmail()
+      );
+      allow create: if isValidId(depositId) &&
+        isVerifiedUser() &&
+        isValidWalletDeposit(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'PENDING' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(depositId) &&
+        isValidWalletDeposit(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().reference == existing().reference &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isVerifiedUser() &&
+            existing().userId == request.auth.uid &&
+            existing().status == 'PENDING' &&
+            incoming().status == 'CONFIRMED' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(depositId) && isAdmin();
+    }
+
+    // Notifications Collection
+    match /notifications/{notifId} {
+      allow get: if isValidId(notifId) && isVerifiedUser() && (
+        existing().targetUserId == request.auth.uid ||
+        existing().targetUserId == 'ALL' ||
+        isAdmin()
+      );
+      allow list: if isVerifiedUser() && (
+        resource.data.targetUserId == request.auth.uid ||
+        resource.data.targetUserId == 'ALL' ||
+        isAdminEmail()
+      );
+      allow create: if isValidId(notifId) &&
+        isValidNotification(incoming()) &&
+        incoming().createdAt == request.time && (
+          isAdmin() ||
+          (
+            isVerifiedUser() &&
+            incoming().targetUserId == request.auth.uid &&
+            incoming().createdBy == request.auth.uid &&
+            incoming().category in ['TRANSACTION', 'REFERRAL']
+          )
+        );
+      allow update, delete: if isValidId(notifId) && isAdmin();
+    }
+
+    // Support Tickets Collection
+    match /supportTickets/{ticketId} {
+      allow get: if isValidId(ticketId) && isVerifiedUser() && (
+        existing().userId == request.auth.uid || isAdmin()
+      );
+      allow list: if isVerifiedUser() && (
+        resource.data.userId == request.auth.uid || isAdminEmail()
+      );
+      allow create: if isValidId(ticketId) &&
+        isVerifiedUser() &&
+        isValidSupportTicket(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'OPEN' &&
+        incoming().adminReply == '' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(ticketId) &&
+        isAdmin() &&
+        isValidSupportTicket(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(ticketId) && isAdmin();
+    }
+
+    // API Connections Collection (Admin Only)
+    match /apiConnections/{connId} {
+      allow get: if isValidId(connId) && isAdmin();
+      allow list: if isAdminEmail();
+      allow create, update: if isValidId(connId) &&
+        isAdmin() &&
+        isValidApiConnection(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(connId) && isAdmin();
+    }
+
+    // Admins Registry (Admin Only)
+    match /admins/{adminUid} {
+      allow get: if isValidId(adminUid) && isAdmin();
+      allow list: if isAdminEmail();
+      allow create, update: if isValidId(adminUid) && isAdminEmail() && isValidAdminRole(incoming());
+      allow delete: if isValidId(adminUid) && isAdminEmail();
+    }
+
+    // Notification Preferences Collection (Owner Only)
+    match /notificationPreferences/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdminEmail();
+      allow create, update: if isValidId(userId) &&
+        isOwner(userId) &&
+        isValidNotificationPreferences(incoming()) &&
+        incoming().userId == userId &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+  }
+}

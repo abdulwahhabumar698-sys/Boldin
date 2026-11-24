@@ -1,0 +1,235 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Registered customer or administrator account with wallet balances and referral metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 200 },
+        "fullName": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 24 },
+        "walletBalance": { "type": "number" },
+        "bonusBalance": { "type": "number" },
+        "referralCode": { "type": "string", "maxLength": 32, "pattern": "^[A-Z0-9_\\-]+$" },
+        "referredBy": { "type": "string", "maxLength": 32 },
+        "otpVerified": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "fullName", "phone", "walletBalance", "bonusBalance", "referralCode", "referredBy", "otpVerified", "status", "role", "createdAt", "updatedAt"]
+    },
+    "ReferralCodeLookup": {
+      "title": "ReferralCodeLookup",
+      "description": "Publicly resolvable referral code directory without PII.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "maxLength": 32, "pattern": "^[A-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerName": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "ownerId", "ownerName", "createdAt"]
+    },
+    "ReferralRecord": {
+      "title": "ReferralRecord",
+      "description": "Tracks a referred user signup and earned bonus payout.",
+      "type": "object",
+      "properties": {
+        "referrerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referredUserId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referredUserName": { "type": "string", "maxLength": 120 },
+        "referralCode": { "type": "string", "maxLength": 32, "pattern": "^[A-Z0-9_\\-]+$" },
+        "bonusAmount": { "type": "number" },
+        "commissionRate": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "credited"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["referrerId", "referredUserId", "referredUserName", "referralCode", "bonusAmount", "commissionRate", "status", "createdAt", "updatedAt"]
+    },
+    "DataPlan": {
+      "title": "DataPlan",
+      "description": "Mobile data subscription plan for MTN, Airtel, Glo, or 9mobile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "network": { "type": "string", "enum": ["MTN", "AIRTEL", "GLO", "9MOBILE"] },
+        "category": { "type": "string", "enum": ["SME", "GIFTING", "CORPORATE"] },
+        "name": { "type": "string", "maxLength": 100 },
+        "dataVolume": { "type": "string", "maxLength": 32 },
+        "validity": { "type": "string", "maxLength": 40 },
+        "costPrice": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "discountLabel": { "type": "string", "maxLength": 40 },
+        "apiPlanCode": { "type": "string", "maxLength": 64 },
+        "active": { "type": "boolean" },
+        "featured": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "network", "category", "name", "dataVolume", "validity", "costPrice", "sellingPrice", "discountLabel", "apiPlanCode", "active", "featured", "createdAt", "updatedAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "VTU purchase or wallet funding transaction record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userEmail": { "type": "string", "maxLength": 200 },
+        "type": { "type": "string", "enum": ["DATA", "AIRTIME", "WALLET_FUND", "BONUS_CLAIM"] },
+        "network": { "type": "string", "enum": ["MTN", "AIRTEL", "GLO", "9MOBILE", "WALLET"] },
+        "planName": { "type": "string", "maxLength": 120 },
+        "phoneNumber": { "type": "string", "maxLength": 24 },
+        "amount": { "type": "number" },
+        "profit": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["WALLET", "PAYSTACK_CARD", "BANK_TRANSFER", "BONUS_CONVERSION"] },
+        "reference": { "type": "string", "maxLength": 80 },
+        "providerReference": { "type": "string", "maxLength": 80 },
+        "status": { "type": "string", "enum": ["PENDING", "PROCESSING", "SUCCESS", "FAILED"] },
+        "apiMessage": { "type": "string", "maxLength": 240 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userEmail", "type", "network", "planName", "phoneNumber", "amount", "profit", "paymentMethod", "reference", "providerReference", "status", "apiMessage", "createdAt", "updatedAt"]
+    },
+    "WalletDeposit": {
+      "title": "WalletDeposit",
+      "description": "Wallet funding deposit record for bank transfer and card monitoring.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "maxLength": 120 },
+        "amount": { "type": "number" },
+        "method": { "type": "string", "enum": ["BANK_TRANSFER", "DEBIT_CARD", "GATEWAY"] },
+        "reference": { "type": "string", "maxLength": 80 },
+        "virtualAccount": { "type": "string", "maxLength": 40 },
+        "status": { "type": "string", "enum": ["PENDING", "CONFIRMED", "REJECTED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "amount", "method", "reference", "virtualAccount", "status", "createdAt", "updatedAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Broadcast or targeted user notification sent by admin.",
+      "type": "object",
+      "properties": {
+        "targetUserId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 120 },
+        "message": { "type": "string", "maxLength": 500 },
+        "category": { "type": "string", "enum": ["PROMO", "SYSTEM", "TRANSACTION", "REFERRAL"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetUserId", "title", "message", "category", "createdBy", "createdAt"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "Customer complaint or support ticket linked to optional transaction reference.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "maxLength": 120 },
+        "userEmail": { "type": "string", "maxLength": 200 },
+        "subject": { "type": "string", "maxLength": 140 },
+        "transactionRef": { "type": "string", "maxLength": 80 },
+        "message": { "type": "string", "maxLength": 1000 },
+        "adminReply": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["OPEN", "IN_PROGRESS", "RESOLVED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "userEmail", "subject", "transactionRef", "message", "adminReply", "status", "createdAt", "updatedAt"]
+    },
+    "ApiConnection": {
+      "title": "ApiConnection",
+      "description": "Admin-managed VTU and payment gateway provider configuration metadata.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 80 },
+        "providerType": { "type": "string", "enum": ["VTU", "PAYMENT", "OTP"] },
+        "baseUrl": { "type": "string", "maxLength": 200 },
+        "mode": { "type": "string", "enum": ["LIVE", "SANDBOX"] },
+        "active": { "type": "boolean" },
+        "lastCheckedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "providerType", "baseUrl", "mode", "active", "lastCheckedAt", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Authoritative administrator access registry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "NotificationPreferences": {
+      "title": "NotificationPreferences",
+      "description": "User push notification preferences and read watermark.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "pushEnabled": { "type": "boolean" },
+        "purchaseAlerts": { "type": "boolean" },
+        "referralAlerts": { "type": "boolean" },
+        "offerAlerts": { "type": "boolean" },
+        "lastReadAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "pushEnabled", "purchaseAlerts", "referralAlerts", "offerAlerts", "lastReadAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles and wallet balances."
+    },
+    "/referralCodes/{code}": {
+      "schema": { "$ref": "#/entities/ReferralCodeLookup" },
+      "description": "Unique referral codes mapped to referrer IDs."
+    },
+    "/referrals/{referralId}": {
+      "schema": { "$ref": "#/entities/ReferralRecord" },
+      "description": "Referral history and earned bonuses."
+    },
+    "/dataPlans/{planId}": {
+      "schema": { "$ref": "#/entities/DataPlan" },
+      "description": "Available MTN, Airtel, Glo, and 9mobile data plans."
+    },
+    "/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Customer data, airtime, and wallet transactions."
+    },
+    "/walletDeposits/{depositId}": {
+      "schema": { "$ref": "#/entities/WalletDeposit" },
+      "description": "Bank transfer and card wallet deposit records."
+    },
+    "/notifications/{notifId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "System and promotional notifications."
+    },
+    "/supportTickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/SupportTicket" },
+      "description": "Customer support tickets and complaints."
+    },
+    "/apiConnections/{connId}": {
+      "schema": { "$ref": "#/entities/ApiConnection" },
+      "description": "VTU and payment provider connections."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Admin role registry."
+    },
+    "/notificationPreferences/{userId}": {
+      "schema": { "$ref": "#/entities/NotificationPreferences" },
+      "description": "Per-user push notification settings."
+    }
+  }
+}
